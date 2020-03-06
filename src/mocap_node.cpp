@@ -103,6 +103,7 @@ void processMocapData( const char** mocap_model,
   ros::NodeHandle n("~");
   ros::Publisher markers_publisher = n.advertise<geometry_msgs::PoseArray>("/markers",1);
   geometry_msgs::PoseArray msg;
+  geometry_msgs::Pose previous;
   //Spaghetti extension - end
 
   while(ros::ok())
@@ -162,6 +163,13 @@ void processMocapData( const char** mocap_model,
                 pose.position.y = format.model.rigidBodies[i].marker[j].positionY;
                 pose.position.z = format.model.rigidBodies[i].marker[j].positionZ;
                 pose.orientation.x = ID;
+                if(j==0){
+                  if (previous.position.x == pose.position.x){
+                    ROS_WARN("Rigid Body %d not visible", ID);
+                    break;
+                  }
+                  previous = pose;
+                }
                 msg.poses.push_back(pose);
               }
             }
