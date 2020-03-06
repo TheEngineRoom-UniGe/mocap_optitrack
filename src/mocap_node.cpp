@@ -17,6 +17,7 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/PoseArray.h>
 
 // System includes
 #include <string>
@@ -98,6 +99,12 @@ void processMocapData( const char** mocap_model,
   ROS_INFO("Start processMocapData");
   bool version = false;
 
+  //Spaghetti extension - start
+  ros::NodeHandle n("~");
+  ros::Publisher markers_publisher = n.advertise<geometry_msgs::PoseArray>("/markers",1);
+  geometry_msgs::PoseArray msg;
+  //Spaghetti extension - end
+
   while(ros::ok())
   {
     bool packetread = false;
@@ -130,6 +137,37 @@ void processMocapData( const char** mocap_model,
           format.parse();
           packetread = true;
           numberOfPackets++;
+
+          
+          //Spaghetti extension - start
+          msg.poses.clear();
+          msg.header.stamp = ros::Time::now();
+          geometry_msgs::Pose pose;
+
+          if(format.model.numOtherMarkers > 0){
+            for(int i = 0; i < format.model.numOtherMarkers; i++ ){
+              pose.position.x = format.model.otherMarkers[i].positionX;
+              pose.position.y = format.model.otherMarkers[i].positionY;
+              pose.position.z = format.model.otherMarkers[i].positionZ;
+              pose.orientation.x = -1;
+              msg.poses.push_back(pose);
+            }
+          }
+
+          if(format.model.numRigidBodies > 0){
+            for(int i = 0; i < format.model.numRigidBodies; i++ ){
+              int ID = format.model.rigidBodies[i].ID;
+              for(int j = 0; j < format.model.rigidBodies[i].NumberOfMarkers; j++){
+                pose.position.x = format.model.rigidBodies[i].marker[j].positionX;
+                pose.position.y = format.model.rigidBodies[i].marker[j].positionY;
+                pose.position.z = format.model.rigidBodies[i].marker[j].positionZ;
+                pose.orientation.x = ID;
+                msg.poses.push_back(pose);
+              }
+            }
+          }
+          markers_publisher.publish(msg);
+          //Spaghetti extension - end
 
           if( format.model.numRigidBodies > 0 )
           {
